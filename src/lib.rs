@@ -58,23 +58,67 @@ pub fn process_transform(program: Program, _metadata: TransformPluginProgramMeta
     program.fold_with(&mut as_folder(TransformVisitor::default()))
 }
 
-test_inline!(
-    Default::default(),
-    |_| as_folder(TransformVisitor::default()),
-    boo,
-    // Input
-    r#"
-    var styles = css`
-        :host {
-            font-family: sans-serif;
-        }
+#[cfg(test)]
+mod test {
+    use super::*;
 
-        .potato {
-            padding-top: ${5 + 5}px;
-            padding-bottom: 10px;
-        }
-    `;
-    "#,
-    // Output
-    r#"var styles = css`:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
-);
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        tagged_css,
+        // Input
+        r#"
+        var styles = css`
+            :host {
+                font-family: sans-serif;
+            }
+    
+            .potato {
+                padding-top: 10px;
+                padding-bottom: 10px;
+                padding-right: 5px;
+                padding-left: 5px;
+            }
+        `;
+        "#,
+        // Output
+        r#"var styles = css`:host{font-family:sans-serif}.potato{padding:10px 5px}`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        untagged_css,
+        // Input
+        r#"
+        var styles = `
+            .potato {
+                padding: 10px;
+            }
+        `;
+        "#,
+        // Output
+        r#"var styles = `.potato{padding:10px}`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        css_with_variables,
+        // Input
+        r#"
+        var styles = css`
+            :host {
+                font-family: sans-serif;
+            }
+    
+            .potato {
+                padding-top: ${5 + 5}px;
+                padding-bottom: 10px;
+            }
+        `;
+        "#,
+        // Output
+        r#"var styles = css`:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
+    );
+}
