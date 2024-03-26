@@ -766,6 +766,7 @@ dependencies = [
  "serde",
  "swc_core",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

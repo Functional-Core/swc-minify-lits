@@ -4,28 +4,41 @@ use lightningcss::{
     targets::Targets,
 };
 use swc_core::ecma::ast::Tpl;
+use tracing::{event, instrument, Level};
 
 use crate::prelude::*;
 
 const PLACEHOLDER: &str = "@TEMPLATE_VARIABLE()";
 
 // Same as 'process_tpl' but ignores parse errors.
+#[instrument(level = Level::DEBUG)]
 pub fn try_process_tpl(tpl: &mut Tpl) -> Result<()> {
     let res = process_tpl(tpl);
 
-    if let Err(Error::CssParseError(_)) = res {
+    if let Err(Error::CssParseError(error)) = res {
+        event!(Level::DEBUG, error, "Ignoring CSS parse error",);
         return Ok(());
     }
 
     res
 }
 
+#[instrument(level = Level::DEBUG)]
 pub fn process_tpl(tpl: &mut Tpl) -> Result<()> {
     let css_raw_iter = tpl.quasis.iter().map(|quasi| quasi.raw.as_str());
     let css_raw: String = Itertools::intersperse(css_raw_iter, PLACEHOLDER).collect();
+
+    event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
     let mut stylesheet = parse_css(&css_raw)?;
+
     transform_css(&mut stylesheet)?;
+
     let new_css_raw = print_css(&stylesheet)?;
+    event!(
+        Level::DEBUG,
+        new_css_raw,
+        "Transformed CSS rendered to string",
+    );
 
     let new_quasis = new_css_raw.split(PLACEHOLDER);
 

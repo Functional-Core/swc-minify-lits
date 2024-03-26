@@ -15,6 +15,7 @@ swc_core = { version = "0.90.*", features = ["ecma_plugin_transform"] }
 thiserror = "1.0.58"
 lightningcss = "1.0.0-alpha.55"
 itertools = "0.12.1"
+tracing = "0.1.40"
 
 # .cargo/config defines few alias to build plugin.
 # cargo build-wasi generates wasm-wasi32 binary
