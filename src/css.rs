@@ -10,76 +10,87 @@ use crate::prelude::*;
 
 const PLACEHOLDER: &str = "@TEMPLATE_VARIABLE()";
 
-// Same as 'process_tpl' but ignores parse errors.
-#[instrument(level = Level::DEBUG)]
-pub fn try_process_tpl(tpl: &mut Tpl) -> Result<()> {
-    let res = process_tpl(tpl);
+#[derive(Debug, Default)]
+pub struct CssProcessor {
+    pub settings: CssSettings,
+}
 
-    if let Err(Error::CssParseError(error)) = res {
-        event!(Level::DEBUG, error, "Ignoring CSS parse error",);
-        return Ok(());
+impl CssProcessor {
+    pub fn new(settings: CssSettings) -> Self {
+        Self { settings }
     }
 
-    res
-}
+    // Same as 'process_tpl' but ignores parse errors.
+    #[instrument(level = Level::DEBUG)]
+    pub fn try_process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
+        let res = self.process_tpl(tpl);
 
-#[instrument(level = Level::DEBUG)]
-pub fn process_tpl(tpl: &mut Tpl) -> Result<()> {
-    let css_raw_iter = tpl.quasis.iter().map(|quasi| quasi.raw.as_str());
-    let css_raw: String = Itertools::intersperse(css_raw_iter, PLACEHOLDER).collect();
+        if let Err(Error::CssParseError(error)) = res {
+            event!(Level::DEBUG, error, "Ignoring CSS parse error",);
+            return Ok(());
+        }
 
-    event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
-    let mut stylesheet = parse_css(&css_raw)?;
+        res
+    }
 
-    transform_css(&mut stylesheet)?;
+    #[instrument(level = Level::DEBUG)]
+    pub fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
+        let css_raw_iter = tpl.quasis.iter().map(|quasi| quasi.raw.as_str());
+        let css_raw: String = Itertools::intersperse(css_raw_iter, PLACEHOLDER).collect();
 
-    let new_css_raw = print_css(&stylesheet)?;
-    event!(
-        Level::DEBUG,
-        new_css_raw,
-        "Transformed CSS rendered to string",
-    );
+        event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
+        let mut stylesheet = self.parse_css(&css_raw)?;
 
-    let new_quasis = new_css_raw.split(PLACEHOLDER);
+        self.transform_css(&mut stylesheet)?;
 
-    tpl.quasis
-        .iter_mut()
-        .zip(new_quasis)
-        .for_each(|(quasi, new_raw)| {
-            quasi.raw = new_raw.into();
-        });
+        let new_css_raw = self.print_css(&stylesheet)?;
+        event!(
+            Level::DEBUG,
+            new_css_raw,
+            "Transformed CSS rendered to string",
+        );
 
-    Ok(())
-}
+        let new_quasis = new_css_raw.split(PLACEHOLDER);
 
-fn parse_css(raw_css: &str) -> Result<StyleSheet> {
-    let parse_opts = ParserOptions::default();
-    let stylesheet = StyleSheet::parse(raw_css, parse_opts)?;
-    Ok(stylesheet)
-}
+        tpl.quasis
+            .iter_mut()
+            .zip(new_quasis)
+            .for_each(|(quasi, new_raw)| {
+                quasi.raw = new_raw.into();
+            });
 
-fn transform_css<'a>(stylesheet: &mut StyleSheet) -> Result<'a, ()> {
-    let targets = Targets::default();
+        Ok(())
+    }
 
-    let minify_opts = MinifyOptions {
-        targets: targets.clone(),
-        ..Default::default()
-    };
+    fn parse_css<'raw>(&self, raw_css: &'raw str) -> Result<StyleSheet<'raw, 'raw>> {
+        let parse_opts = ParserOptions::default();
+        let stylesheet = StyleSheet::parse(raw_css, parse_opts)?;
+        Ok(stylesheet)
+    }
 
-    stylesheet.minify(minify_opts)?;
+    fn transform_css(&self, stylesheet: &mut StyleSheet) -> Result<()> {
+        let targets = Targets::default();
 
-    Ok(())
-}
+        let minify_opts = MinifyOptions {
+            targets: targets.clone(),
+            ..Default::default()
+        };
 
-fn print_css<'a>(stylesheet: &'a StyleSheet) -> Result<'a, String> {
-    let targets = Targets::default();
+        stylesheet.minify(minify_opts)?;
 
-    let printer_opts = PrinterOptions {
-        targets,
-        minify: true,
-        ..Default::default()
-    };
-    let css = stylesheet.to_css(printer_opts)?;
+        Ok(())
+    }
 
-    Ok(css.code)
+    fn print_css(&self, stylesheet: &StyleSheet) -> Result<String> {
+        let targets = Targets::default();
+
+        let printer_opts = PrinterOptions {
+            targets,
+            minify: true,
+            ..Default::default()
+        };
+        let css = stylesheet.to_css(printer_opts)?;
+
+        Ok(css.code)
+    }
 }

@@ -1,3 +1,4 @@
 pub use crate::error::Error;
+pub use crate::settings::*;
 
-pub type Result<'i, T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;

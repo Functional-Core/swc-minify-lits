@@ -2,6 +2,8 @@
 
 use std::os::unix::process;
 
+use css::CssProcessor;
+use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     ecma::{
@@ -17,9 +19,11 @@ use crate::prelude::*;
 mod css;
 mod error;
 mod prelude;
+mod settings;
 
 #[derive(Default)]
 pub struct TransformVisitor {
+    css_processor: CssProcessor,
     tag: Option<Atom>,
 }
 
@@ -40,8 +44,8 @@ impl VisitMut for TransformVisitor {
         tpl.visit_mut_children_with(self);
 
         let res = match &self.tag {
-            Some(s) if s == "css" => css::process_tpl(tpl),
-            None => css::try_process_tpl(tpl),
+            Some(s) if s == "css" => self.css_processor.process_tpl(tpl),
+            None => self.css_processor.try_process_tpl(tpl),
             _ => return,
         };
 
@@ -54,8 +58,20 @@ impl VisitMut for TransformVisitor {
 }
 
 #[plugin_transform]
-pub fn process_transform(program: Program, _metadata: TransformPluginProgramMetadata) -> Program {
-    program.fold_with(&mut as_folder(TransformVisitor::default()))
+pub fn process_transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
+    let opts: Settings = serde_json::from_str(
+        &metadata
+            .get_transform_plugin_config()
+            .expect("No plugin settings found for minify-lits"),
+    )
+    .expect("Invalid plugin settings for minify-lits");
+
+    let visitor = TransformVisitor {
+        css_processor: CssProcessor::new(opts.css_settings),
+        ..TransformVisitor::default()
+    };
+
+    program.fold_with(&mut as_folder(visitor))
 }
 
 #[cfg(test)]
