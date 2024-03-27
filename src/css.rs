@@ -39,7 +39,7 @@ impl CssProcessor {
         let css_raw: String = Itertools::intersperse(css_raw_iter, PLACEHOLDER).collect();
 
         event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
-        let mut stylesheet = self.parse_css(&css_raw)?;
+        let mut stylesheet = parse_css(&css_raw)?;
 
         self.transform_css(&mut stylesheet)?;
 
@@ -60,12 +60,6 @@ impl CssProcessor {
             });
 
         Ok(())
-    }
-
-    fn parse_css<'raw>(&self, raw_css: &'raw str) -> Result<StyleSheet<'raw, 'raw>> {
-        let parse_opts = ParserOptions::default();
-        let stylesheet = StyleSheet::parse(raw_css, parse_opts)?;
-        Ok(stylesheet)
     }
 
     fn transform_css(&self, stylesheet: &mut StyleSheet) -> Result<()> {
@@ -93,4 +87,10 @@ impl CssProcessor {
 
         Ok(css.code)
     }
+}
+
+fn parse_css<'raw>(raw_css: &'raw str) -> Result<StyleSheet<'raw, 'raw>> {
+    let parse_opts = ParserOptions::default();
+    let stylesheet = StyleSheet::parse(raw_css, parse_opts)?;
+    Ok(stylesheet)
 }
