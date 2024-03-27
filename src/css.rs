@@ -4,9 +4,12 @@ use lightningcss::{
     targets::Targets,
 };
 use swc_core::ecma::ast::Tpl;
-use tracing::{event, instrument, Level};
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    tpl_processor::TplProcessor,
+    utils::quasi::{join_quasis, replace_quasis},
+};
 
 const PLACEHOLDER: &str = "@TEMPLATE_VARIABLE()";
 
@@ -18,48 +21,6 @@ pub struct CssProcessor {
 impl CssProcessor {
     pub fn new(settings: CssSettings) -> Self {
         Self { settings }
-    }
-
-    // Same as 'process_tpl' but ignores parse errors.
-    #[instrument(level = Level::DEBUG)]
-    pub fn try_process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
-        let res = self.process_tpl(tpl);
-
-        if let Err(Error::CssParseError(error)) = res {
-            event!(Level::DEBUG, error, "Ignoring CSS parse error",);
-            return Ok(());
-        }
-
-        res
-    }
-
-    #[instrument(level = Level::DEBUG)]
-    pub fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
-        let css_raw_iter = tpl.quasis.iter().map(|quasi| quasi.raw.as_str());
-        let css_raw: String = Itertools::intersperse(css_raw_iter, PLACEHOLDER).collect();
-
-        event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
-        let mut stylesheet = parse_css(&css_raw)?;
-
-        self.transform_css(&mut stylesheet)?;
-
-        let new_css_raw = self.print_css(&stylesheet)?;
-        event!(
-            Level::DEBUG,
-            new_css_raw,
-            "Transformed CSS rendered to string",
-        );
-
-        let new_quasis = new_css_raw.split(PLACEHOLDER);
-
-        tpl.quasis
-            .iter_mut()
-            .zip(new_quasis)
-            .for_each(|(quasi, new_raw)| {
-                quasi.raw = new_raw.into();
-            });
-
-        Ok(())
     }
 
     fn transform_css(&self, stylesheet: &mut StyleSheet) -> Result<()> {
@@ -86,6 +47,41 @@ impl CssProcessor {
         let css = stylesheet.to_css(printer_opts)?;
 
         Ok(css.code)
+    }
+}
+
+impl TplProcessor for CssProcessor {
+    #[instrument(level = Level::DEBUG)]
+    fn try_process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
+        let res = self.process_tpl(tpl);
+
+        if let Err(Error::CssParseError(error)) = res {
+            event!(Level::DEBUG, error, "Ignoring CSS parse error",);
+            return Ok(());
+        }
+
+        res
+    }
+
+    #[instrument(level = Level::DEBUG)]
+    fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
+        let css_raw = join_quasis(tpl, PLACEHOLDER);
+
+        event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
+        let mut stylesheet = parse_css(&css_raw)?;
+
+        self.transform_css(&mut stylesheet)?;
+
+        let new_css_raw = self.print_css(&stylesheet)?;
+        event!(
+            Level::DEBUG,
+            new_css_raw,
+            "Transformed CSS rendered to string",
+        );
+
+        replace_quasis(tpl, &new_css_raw, PLACEHOLDER);
+
+        Ok(())
     }
 }
 

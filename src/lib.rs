@@ -13,13 +13,17 @@ use swc_core::{
     },
     plugin::{errors::HANDLER, plugin_transform, proxies::TransformPluginProgramMetadata},
 };
+use tpl_processor::TplProcessor;
 
 use crate::prelude::*;
 
 mod css;
 mod error;
+mod html;
 mod prelude;
 mod settings;
+mod tpl_processor;
+mod utils;
 
 #[derive(Default)]
 pub struct TransformVisitor {
