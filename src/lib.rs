@@ -1,14 +1,8 @@
-#![allow(unused)]
-
-use std::os::unix::process;
-
 use css::CssProcessor;
-use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     ecma::{
         ast::{Expr, Program, TaggedTpl, Tpl},
-        transforms::testing::test_inline,
         visit::{as_folder, FoldWith, VisitMut, VisitMutWith},
     },
     plugin::{errors::HANDLER, plugin_transform, proxies::TransformPluginProgramMetadata},
@@ -80,6 +74,8 @@ pub fn process_transform(program: Program, metadata: TransformPluginProgramMetad
 
 #[cfg(test)]
 mod test {
+    use swc_core::ecma::transforms::testing::test_inline;
+
     use super::*;
 
     test_inline!(

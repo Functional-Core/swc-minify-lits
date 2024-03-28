@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use lightningcss::{
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
     targets::Targets,
