@@ -52,18 +52,6 @@ impl CssProcessor {
 
 impl TplProcessor for CssProcessor {
     #[instrument(level = Level::DEBUG)]
-    fn try_process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
-        let res = self.process_tpl(tpl);
-
-        if let Err(Error::CssParseError(error)) = res {
-            event!(Level::DEBUG, error, "Ignoring CSS parse error",);
-            return Ok(());
-        }
-
-        res
-    }
-
-    #[instrument(level = Level::DEBUG)]
     fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
         let css_raw = join_quasis(tpl, PLACEHOLDER);
 

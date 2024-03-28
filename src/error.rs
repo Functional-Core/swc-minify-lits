@@ -12,6 +12,12 @@ pub enum Error {
     CssPrintError(String),
 }
 
+impl Error {
+    pub fn is_parse_error(&self) -> bool {
+        matches!(self, Self::CssParseError(_))
+    }
+}
+
 impl<'i> From<CssError<css::error::ParserError<'i>>> for Error {
     fn from(e: CssError<css::error::ParserError<'i>>) -> Self {
         Error::CssParseError(e.to_string())
