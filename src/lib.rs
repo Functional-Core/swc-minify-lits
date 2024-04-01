@@ -1,4 +1,5 @@
 use css::CssProcessor;
+use html::HtmlProcessor;
 use swc_core::{
     atoms::Atom,
     ecma::{
@@ -22,6 +23,7 @@ mod utils;
 #[derive(Default)]
 pub struct TransformVisitor {
     css_processor: CssProcessor,
+    html_processor: HtmlProcessor,
     tag: Option<Atom>,
 }
 
@@ -43,6 +45,7 @@ impl VisitMut for TransformVisitor {
 
         let res = match &self.tag {
             Some(s) if s == "css" => self.css_processor.process_tpl(tpl),
+            Some(s) if s == "html" => self.html_processor.process_tpl(tpl),
             None => self.css_processor.try_process_tpl(tpl),
             _ => return,
         };
@@ -66,6 +69,7 @@ pub fn process_transform(program: Program, metadata: TransformPluginProgramMetad
 
     let visitor = TransformVisitor {
         css_processor: CssProcessor::new(opts.css_settings),
+        html_processor: HtmlProcessor::new(opts.html_settings),
         ..TransformVisitor::default()
     };
 
@@ -120,7 +124,7 @@ mod test {
     test_inline!(
         Default::default(),
         |_| as_folder(TransformVisitor::default()),
-        css_with_variables,
+        tagged_css_with_vars,
         // Input
         r#"
         var styles = css`
@@ -136,5 +140,106 @@ mod test {
         "#,
         // Output
         r#"var styles = css`:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        untagged_css_with_vars,
+        // Input
+        r#"
+        var styles = `
+            :host {
+                font-family: sans-serif;
+            }
+    
+            .potato {
+                padding-top: ${5 + 5}px;
+                padding-bottom: 10px;
+            }
+        `;
+        "#,
+        // Output
+        r#"var styles = `:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        tagged_html,
+        //Input
+        r#"
+        var markup = html`
+            <p>Nickname: Potato</p>
+            <label>Enter new nickname:
+                <input />
+            </label>
+            <button .disabled>
+                Submit
+            </button>
+        `;
+        "#,
+        //Output
+        r#"var markup = html`<p>Nickname: Potato</p><label>Enter new nickname: <input></label><button .disabled>Submit</button>`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        untagged_html,
+        //Input
+        r#"
+        var markup = `
+            <p>Nickname: Potato</p>
+            <label>Enter new nickname:
+                <input />
+            </label>
+            <button .disabled>
+                Submit
+            </button>
+        `;
+        "#,
+        //Output
+        r#"var markup = html`<p>Nickname: Potato</p><label>Enter new nickname: <input></label><button .disabled>Submit</button>`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        tagged_html_with_vars,
+        //Input
+        r#"
+        var markup = html`
+            <p>Nickname: ${this.name}</p>
+            <label>Enter new nickname:
+                <input @input=${this._inputChanged} />
+            </label>
+            <button @click=${this._updateName} .disabled=${!this._submitEnabled}>
+                Submit
+            </button>
+        `;
+        "#,
+        //Output
+        r#"var markup = html`<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button @click=${this._updateName} .disabled=${!this._submitEnabled}>Submit</button>`;"#
+    );
+
+    test_inline!(
+        Default::default(),
+        |_| as_folder(TransformVisitor::default()),
+        untagged_html_with_vars,
+        //Input
+        r#"
+        var markup = `
+            <p>Nickname: ${this.name}</p>
+            <label>Enter new nickname:
+                <input @input=${this._inputChanged} />
+            </label>
+            <button @click=${this._updateName} .disabled=${!this._submitEnabled}>
+                Submit
+            </button>
+        `;
+        "#,
+        //Output
+        r#"var markup = `<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button @click=${this._updateName} .disabled=${!this._submitEnabled}>Submit</button>`;"#
     );
 }

@@ -783,6 +783,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "minify-html"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cd4517942a8e7425c990b14977f86a63e4996eed7b15cfcca1540126ac5ff25"
+dependencies = [
+ "aho-corasick 0.7.20",
+ "lazy_static",
+ "lightningcss",
+ "memchr",
+ "minify-html-common",
+ "minify-js",
+ "once_cell",
+ "rustc-hash",
+]
+
+[[package]]
 name = "minify-html-common"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,21 +811,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "minify-html-onepass"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7879f5787f40783b98430c1760adfab001db8fd05e088bfe41929627daf113"
-dependencies = [
- "aho-corasick 0.7.20",
- "lazy_static",
- "lightningcss",
- "memchr",
- "minify-html-common",
- "minify-js",
- "rustc-hash",
 ]
 
 [[package]]
@@ -827,8 +828,10 @@ name = "minify-lits"
 version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
+ "lazy_static",
  "lightningcss",
- "minify-html-onepass",
+ "minify-html",
+ "regex",
  "serde",
  "serde_json",
  "swc_core",
