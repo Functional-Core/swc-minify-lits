@@ -7,10 +7,11 @@ use swc_core::ecma::ast::Tpl;
 use crate::{
     prelude::*,
     tpl_processor::TplProcessor,
-    utils::quasi::{join_quasis, replace_quasis},
+    utils::tpl::{join_quasis, reorder_exprs, replace_quasis, split_new_quasis},
 };
 
-const PLACEHOLDER: &str = "@TEMPLATE_VARIABLE()";
+const PLACEHOLDER_BASE: &str = "@TEMPLATE_VARIABLE_";
+const PLACEHOLDER_SUFFIX: &str = "_()";
 
 #[derive(Debug, Default)]
 pub struct CssProcessor {
@@ -52,21 +53,27 @@ impl CssProcessor {
 impl TplProcessor for CssProcessor {
     #[instrument(level = Level::DEBUG)]
     fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
-        let css_raw = join_quasis(tpl, PLACEHOLDER);
+        let css_raw = join_quasis(tpl, PLACEHOLDER_BASE, PLACEHOLDER_SUFFIX);
 
-        event!(Level::DEBUG, css_raw, "Parsing raw string as CSS");
+        debug!(css_raw, "Parsing raw string as CSS");
         let mut stylesheet = parse_css(&css_raw)?;
 
         self.transform_css(&mut stylesheet)?;
 
         let new_css_raw = self.print_css(&stylesheet)?;
-        event!(
-            Level::DEBUG,
-            new_css_raw,
-            "Transformed CSS rendered to string",
+        debug!(new_css_raw, "Transformed CSS rendered to string",);
+
+        let (new_expr_ixs, new_quasis) =
+            split_new_quasis(&new_css_raw, PLACEHOLDER_BASE, PLACEHOLDER_SUFFIX);
+        let debug_new_ixs = format!("{:?}", new_expr_ixs);
+        let debug_new_quasis = format!("{:?}", new_quasis);
+        debug!(
+            debug_new_ixs,
+            debug_new_quasis, "New expression indexes for CSS template",
         );
 
-        replace_quasis(tpl, &new_css_raw, PLACEHOLDER);
+        replace_quasis(tpl, new_quasis);
+        reorder_exprs(tpl, new_expr_ixs);
 
         Ok(())
     }

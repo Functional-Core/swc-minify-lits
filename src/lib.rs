@@ -46,7 +46,13 @@ impl VisitMut for TransformVisitor {
         let res = match &self.tag {
             Some(s) if s == "css" => self.css_processor.process_tpl(tpl),
             Some(s) if s == "html" => self.html_processor.process_tpl(tpl),
-            None => self.css_processor.try_process_tpl(tpl),
+            None => match self.css_processor.process_tpl(tpl) {
+                Err(err) if err.is_parse_error() => {
+                    debug!(%err, "Ignoring parse error");
+                    self.html_processor.process_tpl(tpl)
+                }
+                res => res,
+            },
             _ => return,
         };
 
@@ -134,12 +140,12 @@ mod test {
     
             .potato {
                 padding-top: ${5 + 5}px;
-                padding-bottom: 10px;
+                padding-bottom: ${10 + 5}px;
             }
         `;
         "#,
         // Output
-        r#"var styles = css`:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
+        r#"var styles = css`:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:${10 + 5}px}`;"#
     );
 
     test_inline!(
@@ -155,12 +161,12 @@ mod test {
     
             .potato {
                 padding-top: ${5 + 5}px;
-                padding-bottom: 10px;
+                padding-bottom: ${10 + 5}px;
             }
         `;
         "#,
         // Output
-        r#"var styles = `:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:10px}`;"#
+        r#"var styles = `:host{font-family:sans-serif}.potato{padding-top:${5 + 5}px;padding-bottom:${10 + 5}px}`;"#
     );
 
     test_inline!(
@@ -200,7 +206,7 @@ mod test {
         `;
         "#,
         //Output
-        r#"var markup = html`<p>Nickname: Potato</p><label>Enter new nickname: <input></label><button .disabled>Submit</button>`;"#
+        r#"var markup = `<p>Nickname: Potato</p><label>Enter new nickname: <input></label><button .disabled>Submit</button>`;"#
     );
 
     test_inline!(
@@ -220,7 +226,7 @@ mod test {
         `;
         "#,
         //Output
-        r#"var markup = html`<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button @click=${this._updateName} .disabled=${!this._submitEnabled}>Submit</button>`;"#
+        r#"var markup = html`<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button .disabled=${!this._submitEnabled} @click=${this._updateName}>Submit</button>`;"#
     );
 
     test_inline!(
@@ -240,6 +246,6 @@ mod test {
         `;
         "#,
         //Output
-        r#"var markup = `<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button @click=${this._updateName} .disabled=${!this._submitEnabled}>Submit</button>`;"#
+        r#"var markup = `<p>Nickname: ${this.name}</p><label>Enter new nickname: <input @input=${this._inputChanged}></label><button .disabled=${!this._submitEnabled} @click=${this._updateName}>Submit</button>`;"#
     );
 }

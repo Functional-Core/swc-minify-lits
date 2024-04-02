@@ -1,9 +1,10 @@
 use minify_html::Cfg;
 use swc_core::ecma::ast::Tpl;
 
-use crate::{prelude::*, tpl_processor::*, utils::quasi::*};
+use crate::{prelude::*, tpl_processor::*, utils::tpl::*};
 
-const PLACEHOLDER: &str = "TEMPLATE_VARIABLE";
+const PLACEHOLDER_BASE: &str = "TEMPLATE_VARIABLE_";
+const PLACEHOLDER_SUFFIX: &str = "_END";
 
 #[derive(Debug, Default)]
 pub struct HtmlProcessor {
@@ -42,17 +43,23 @@ impl HtmlProcessor {
 impl TplProcessor for HtmlProcessor {
     #[instrument(level = Level::DEBUG)]
     fn process_tpl(&self, tpl: &mut Tpl) -> Result<()> {
-        let raw_html = join_quasis(tpl, PLACEHOLDER);
+        let raw_html = join_quasis(tpl, PLACEHOLDER_BASE, PLACEHOLDER_SUFFIX);
 
+        debug!(raw_html, "Transforming raw string as HTML");
         let new_raw = self.transform_html(&raw_html)?;
+        debug!(new_raw, "Transformed HTML");
 
-        replace_quasis(tpl, &new_raw, PLACEHOLDER);
+        let (new_expr_ixs, new_quasis) =
+            split_new_quasis(&new_raw, PLACEHOLDER_BASE, PLACEHOLDER_SUFFIX);
+        let debug_new_ixs = format!("{:?}", new_expr_ixs);
+        let debug_new_quasis = format!("{:?}", new_quasis);
+        debug!(
+            debug_new_ixs,
+            debug_new_quasis, "New quasis and expr indexes"
+        );
 
-        // TODO
-        // - would be better if we could just have minify-html respect syntax
-        // - but that would require update to minify-html which is probably not worth the effort
-        // - add logging
-        // - figure out appropriate placeholder
+        replace_quasis(tpl, new_quasis);
+        reorder_exprs(tpl, new_expr_ixs);
 
         Ok(())
     }
