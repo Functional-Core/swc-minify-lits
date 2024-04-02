@@ -84,3 +84,9 @@ fn parse_css<'raw>(raw_css: &'raw str) -> Result<StyleSheet<'raw, 'raw>> {
     let stylesheet = StyleSheet::parse(raw_css, parse_opts)?;
     Ok(stylesheet)
 }
+
+pub fn is_css(tpl: &Tpl) -> bool {
+    let raw = join_quasis(tpl, PLACEHOLDER_BASE, PLACEHOLDER_SUFFIX);
+    let res = parse_css(&raw);
+    res.is_ok()
+}

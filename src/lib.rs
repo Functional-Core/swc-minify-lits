@@ -1,4 +1,4 @@
-use css::CssProcessor;
+use css::{is_css, CssProcessor};
 use html::HtmlProcessor;
 use swc_core::{
     atoms::Atom,
@@ -22,9 +22,57 @@ mod utils;
 
 #[derive(Default)]
 pub struct TransformVisitor {
+    settings: PluginSettings,
     css_processor: CssProcessor,
     html_processor: HtmlProcessor,
     tag: Option<Atom>,
+}
+
+enum TransformResult {
+    Success,
+    Skipped,
+    Failure(Error),
+}
+
+impl Into<TransformResult> for Result<()> {
+    fn into(self) -> TransformResult {
+        match self {
+            Ok(_) => TransformResult::Success,
+            Err(err) => TransformResult::Failure(err),
+        }
+    }
+}
+
+impl TransformVisitor {
+    fn process_tpl_css(&self, tpl: &mut Tpl) -> TransformResult {
+        if self.settings.minify_css {
+            self.css_processor.process_tpl(tpl).into()
+        } else {
+            TransformResult::Skipped
+        }
+    }
+
+    fn process_tpl_html(&self, tpl: &mut Tpl) -> TransformResult {
+        if self.settings.minify_html {
+            self.html_processor.process_tpl(tpl).into()
+        } else {
+            TransformResult::Skipped
+        }
+    }
+
+    fn process_unknown(&self, tpl: &mut Tpl) -> TransformResult {
+        // CSS should always come first since it will produce
+        // a parse error if not valid, hence we know whether
+        // to bother with the HTML attempt.
+        match self.process_tpl_css(tpl) {
+            TransformResult::Failure(err) if err.is_parse_error() => {
+                debug!(%err, "Ignoring parse error");
+                self.process_tpl_html(tpl)
+            }
+            TransformResult::Skipped if !is_css(tpl) => self.process_tpl_html(tpl),
+            res => res,
+        }
+    }
 }
 
 impl VisitMut for TransformVisitor {
@@ -44,19 +92,13 @@ impl VisitMut for TransformVisitor {
         tpl.visit_mut_children_with(self);
 
         let res = match &self.tag {
-            Some(s) if s == "css" => self.css_processor.process_tpl(tpl),
-            Some(s) if s == "html" => self.html_processor.process_tpl(tpl),
-            None => match self.css_processor.process_tpl(tpl) {
-                Err(err) if err.is_parse_error() => {
-                    debug!(%err, "Ignoring parse error");
-                    self.html_processor.process_tpl(tpl)
-                }
-                res => res,
-            },
+            Some(s) if s == "css" => self.process_tpl_css(tpl),
+            Some(s) if s == "html" => self.process_tpl_html(tpl),
+            None => self.process_unknown(tpl),
             _ => return,
         };
 
-        if let Err(err) = res {
+        if let TransformResult::Failure(err) = res {
             HANDLER.with(|h| {
                 h.struct_span_err(tpl.span, &err.to_string()).emit();
             });
@@ -74,6 +116,7 @@ pub fn process_transform(program: Program, metadata: TransformPluginProgramMetad
     .expect("Invalid plugin settings for minify-lits");
 
     let visitor = TransformVisitor {
+        settings: opts.plugin_settings,
         css_processor: CssProcessor::new(opts.css_settings),
         html_processor: HtmlProcessor::new(opts.html_settings),
         ..TransformVisitor::default()

@@ -1,23 +1,28 @@
 use serde::{self, Deserialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    pub minify_css: bool,
-    pub minify_js: bool,
+    #[serde(flatten)]
+    pub plugin_settings: PluginSettings,
     #[serde(flatten)]
     pub css_settings: CssSettings,
     #[serde(flatten)]
     pub html_settings: HtmlSettings,
 }
 
-impl Default for Settings {
+#[derive(Debug, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PluginSettings {
+    pub minify_css: bool,
+    pub minify_html: bool,
+}
+
+impl Default for PluginSettings {
     fn default() -> Self {
-        Self {
+        PluginSettings {
             minify_css: true,
-            minify_js: true,
-            css_settings: Default::default(),
-            html_settings: Default::default(),
+            minify_html: true,
         }
     }
 }
