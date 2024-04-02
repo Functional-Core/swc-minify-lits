@@ -1,0 +1,20 @@
+{
+    "name": "swc-minify-lits",
+    "version": "0.1.0",
+    "description": "SWC plugin for minifying HTML and CSS template literals.",
+    "main": "swc_minify_lits.wasm",
+    "scripts": {
+        "prepack": "cp target/wasm32-wasi/release/minify-lits.wasm ."
+    },
+    "homepage": "https://swc.rs",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/burtannia/swc-minify-lits.git"
+    },
+    "bugs": {
+        "url": "https://github.com/burtannia/swc-minify-lits/issues"
+    },
+    "author": "James Burton <james@functionalcore.dev>",
+    "keywords": ["swc", "minify", "html", "css", "template", "literals"],
+    "license": "MIT"
+}

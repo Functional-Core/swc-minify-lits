@@ -1,7 +1,22 @@
 [package]
-name = "minify-lits"
+name = "swc-minify-lits"
 version = "0.1.0"
+description = "SWC plugin for minifying HTML and CSS template literals."
+authors = ["James Burton <james@functionalcore.dev>"]
+license = "MIT"
+homepage = "https://swc.rs"
+repository = "https://github.com/Functional-Core/swc-minify-lits"
+readme = "README.md"
+categories = [
+    "development-tools",
+    "development-tools::build-utils",
+    "web-programming",
+]
+keywords = ["swc", "minify", "html", "css", "template", "literals"]
+publish = false
+
 edition = "2021"
+rust-version = "1.77.0"
 
 [lib]
 crate-type = ["cdylib"]
