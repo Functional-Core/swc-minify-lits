@@ -1,6 +1,6 @@
 # swc-minify-lits
 
-A plugin for SWC for minifying HTML and CSS template literals via [`lightningcss`](https://github.com/parcel-bundler/lightningcss)
+A plugin for [SWC](https://swc.rs/) for minifying HTML and CSS template literals via [`lightningcss`](https://lightningcss.dev/)
 and [`minify-html`](https://github.com/wilsonzlin/minify-html).
 
 Works with both tagged and untagged template literals.
